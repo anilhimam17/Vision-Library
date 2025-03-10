@@ -12,10 +12,16 @@ class MediaPipeGestureRecognizer:
         self.VisionRunningMode = mp.tasks.vision.RunningMode
         self.model_path = "./models/gesture_recognizer.task"
 
-    def build_from_options(self) -> Any:
+    @property
+    def options(self) -> Any:
         """Building an instance of the gesture_recognizer model from options."""
-        self.options = self.GestureRecognizerOptions(
+
+        return self.GestureRecognizerOptions(
             base_options=self.BaseOptions(model_asset_path=self.model_path),
             running_mode=self.VisionRunningMode.VIDEO,
         )
-        return self.options
+
+    def build_recognizer(self) -> Any:
+        """Applying the options to build an instance of the gesture_recognizer."""
+
+        return self.GestureRecognizer.create_from_options(self.options)

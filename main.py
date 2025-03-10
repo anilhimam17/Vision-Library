@@ -1,12 +1,10 @@
-from vision_library.app import GestureRecognizerApp
+from gesture_fsm import GestureRecognizerFSM
 
 
 def main() -> None:
-    # Instantiating the Gesture Recognizer application
-    gesture_recognizer_app = GestureRecognizerApp()
-
-    # Running the application
-    gesture_recognizer_app.run()
+    # Instantiating the FSM
+    gesture_system = GestureRecognizerFSM()
+    gesture_system.run()
 
 
 if __name__ == "__main__":
