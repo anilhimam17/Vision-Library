@@ -33,9 +33,7 @@ class GestureRecognizerFSM:
 
         # Threashold and Counters to manage the State Variable
         self.no_gesture_counter = 0
-        self.landmark_track_counter = 0
-        self.threashold_recognizer = 30
-        self.threashold_detector = 100
+        self.threashold_recognizer = 50
 
     def recognition_state(self) -> None:
         """Describes the control flow and pipeline for the recognition state."""
@@ -89,10 +87,12 @@ class GestureRecognizerFSM:
         if self.no_gesture_counter >= self.threashold_recognizer:
             print("Transitioning to tracking state")
             self.state = "tracking"
-            self.landmark_track_counter = 0
 
     def tracking_state(self) -> None:
         """Describes the control flow and pipeline for the tracking state."""
+
+        # Tracking the keystroke for cases
+        keyStroke = cv2.waitKey(1)
 
         ret, frame = self.live_stream.begin_live_stream()
         if not ret:
@@ -135,16 +135,12 @@ class GestureRecognizerFSM:
             self.previous_landmarks = current_landmarks
 
         # Displaying the Landmarks
-        self.landmark_track_counter += 1
         self.live_stream.display_live_frame(TITLE, frame)
 
         # Exit Condition
-        if cv2.waitKey(1) == ord("q"):
+        if keyStroke == ord("q"):
             self.state = "exit"
-
-        # Switching back to Recognition after learning the landmarks
-        if self.landmark_track_counter >= self.threashold_detector:
-            print("Transitioning to recognition state")
+        elif keyStroke == ord("r"):
             self.state = "recognition"
             self.no_gesture_counter = 0
 

@@ -1,4 +1,4 @@
-from gesture_fsm import GestureRecognizerFSM
+from gesture_finte_state_machine import GestureRecognizerFSM
 
 
 def main() -> None:
