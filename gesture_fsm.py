@@ -28,16 +28,21 @@ class GestureRecognizerFSM:
         # State Variable to manage the transitions
         self.state = "recognition"
 
+        # Buffer for landmark detection persistence
+        self.previous_landmarks = []
+
         # Threashold and Counters to manage the State Variable
         self.no_gesture_counter = 0
         self.landmark_track_counter = 0
-        self.threashold_recognizer = 5
-        self.threashold_detector = 10
+        self.threashold_recognizer = 30
+        self.threashold_detector = 100
 
     def recognition_state(self) -> None:
         """Describes the control flow and pipeline for the recognition state."""
-
         ret, frame = self.live_stream.begin_live_stream()
+        if not ret:
+            print("Error retrieving frames in recognition state")
+            return
 
         # Data Pipeline
         mp_frame = self.mediapipe_utilities.process_frame(
@@ -50,19 +55,28 @@ class GestureRecognizerFSM:
         )
 
         # Displaying the mode
-        frame = self.live_stream.display_text_on_stream(frame, "Gesture Recognition Mode", (10, 100))
+        frame = self.live_stream.display_text_on_stream(frame, "Gesture Recognition Mode", (10, 50))
 
-        # Checking for recognized gestures
-        if recognition_result.gestures:
-            for gesture in recognition_result.gestures[0]:
-                if gesture.category_name is not None:
-                    text = f"{gesture.category_name}: {gesture.score:.2f}"
-                    frame = self.live_stream.display_text_on_stream(frame, text, (10, 50))
-                else:
-                    break
+        valid_gestures = []
+        if recognition_result.gestures and len(recognition_result.gestures[0]) > 0:
+            valid_gestures = [
+                gesture for gesture in recognition_result.gestures[0]
+                if (gesture.category_name is not None and gesture.category_name.lower() != "none")
+                and gesture.score >= 0.6
+            ]
+
+        # Non-max suppression
+        if valid_gestures:
+            most_confident_gesture = max(valid_gestures, key=lambda gesture: gesture.score)
+            text = f"{most_confident_gesture.category_name}: {most_confident_gesture.score:.2f}"
+            frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
+            self.no_gesture_counter = 0
         else:
             self.no_gesture_counter += 1
-            print(f"No gesture detected for {self.no_gesture_counter} frames.")
+            frame = self.live_stream.display_text_on_stream(
+                frame, f"No gesture detected: {self.no_gesture_counter}/{self.threashold_recognizer}", (10, 100)
+            )
+            print(f"No gesture detected on {self.no_gesture_counter} frames")
 
         # Displaying the Frames
         self.live_stream.display_live_frame(TITLE, frame)
@@ -73,6 +87,7 @@ class GestureRecognizerFSM:
 
         # Checking for transition condition to learn landmarks
         if self.no_gesture_counter >= self.threashold_recognizer:
+            print("Transitioning to tracking state")
             self.state = "tracking"
             self.landmark_track_counter = 0
 
@@ -80,6 +95,9 @@ class GestureRecognizerFSM:
         """Describes the control flow and pipeline for the tracking state."""
 
         ret, frame = self.live_stream.begin_live_stream()
+        if not ret:
+            print("Error retrieving frames in tracking state")
+            return
 
         # Data Pipeline
         mp_frame = self.mediapipe_utilities.process_frame(
@@ -94,6 +112,7 @@ class GestureRecognizerFSM:
             mp_frame, self.live_stream.timestamp_ms
         )
 
+        current_landmarks = []
         if detection_result.hand_landmarks:
             for hand in detection_result.hand_landmarks:
                 for landmark in hand:
@@ -102,15 +121,30 @@ class GestureRecognizerFSM:
                     x = int(landmark.x * w)
                     y = int(landmark.y * h)
 
+                    # Keep note of current landmarks to cache for persistence
+                    current_landmarks.append((x, y))
                     frame = self.live_stream.display_landmark_on_stream(frame, (x, y))
 
-            self.landmark_track_counter += 1
+        # Combining the previous and current landmarks for persistance
+        if self.previous_landmarks is not None and current_landmarks:
+            for (x, y) in self.previous_landmarks:
+                frame = self.live_stream.display_landmark_on_stream(frame, (x, y))
+
+        # Moving the current landmarks to cache
+        if current_landmarks:
+            self.previous_landmarks = current_landmarks
 
         # Displaying the Landmarks
+        self.landmark_track_counter += 1
         self.live_stream.display_live_frame(TITLE, frame)
+
+        # Exit Condition
+        if cv2.waitKey(1) == ord("q"):
+            self.state = "exit"
 
         # Switching back to Recognition after learning the landmarks
         if self.landmark_track_counter >= self.threashold_detector:
+            print("Transitioning to recognition state")
             self.state = "recognition"
             self.no_gesture_counter = 0
 
