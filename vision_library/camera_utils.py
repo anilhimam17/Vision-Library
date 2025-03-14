@@ -14,7 +14,7 @@ class CVLiveStream:
         self.font_scale = 1
         self.font_color = (255, 0, 0)
         self.font_thickness = 2
-        self.radius = 4
+        self.radius = 7
         self.hand_color = (0, 255, 0)
 
     @property

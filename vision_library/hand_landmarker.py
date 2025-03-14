@@ -24,5 +24,4 @@ class MediaPipeHandLandmarker:
 
     def build_detector(self) -> None:
         """Applying the options to create the hand_landmarker model for inference."""
-
         return self.HandLandmarker.create_from_options(self.options)
