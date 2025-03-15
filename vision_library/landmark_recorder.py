@@ -1,4 +1,5 @@
 import csv
+import pandas as pd
 from typing import Any
 
 
@@ -26,26 +27,15 @@ class LandmarkRecorder:
         )
         self.csv_writer.writerow(headers)
 
-    def store_landmarks(self, landmarks) -> None:
-        """Storing new landmarks captured by the user for a new gesture."""
+    @property
+    def landmarks_df(self) -> pd.DataFrame:
+        return pd.read_csv(self.filepath)
 
-        hand = landmarks.hand_landmarks[0]
-
-        # Flattened list of landmarks
-        flattened_landmarks = [val for landmark in hand for val in (landmark.x, landmark.y, landmark.z)]
-
-        self.csv_writer.writerow(
-            [self.gesture_ctr] + flattened_landmarks
-        )
-
-    def update_gesture_counter(self) -> None:
-        """Updating the gesture counter after collecting all the samples."""
-        self.gesture_ctr += 1
-
-    def extract_landmarks(self, detection_result, frame, live_stream_handle) -> Any:
+    def extract_landmarks(self, detection_result, frame, live_stream_handle) -> tuple[Any, Any]:
         """Carries out the landmark extraction process and provides the current detections."""
 
         current_landmarks = []
+        current_raw_detections = []
         if detection_result.hand_landmarks:
             for hand in detection_result.hand_landmarks:
                 for landmark in hand:
@@ -56,9 +46,24 @@ class LandmarkRecorder:
 
                     # Keep note of current landmarks to cache for persistence
                     current_landmarks.append((x, y))
+                    current_raw_detections.extend([landmark.x, landmark.y, landmark.z])
                     frame = live_stream_handle.display_landmark_on_stream(frame, (x, y))
 
-        return current_landmarks
+        return (current_landmarks, current_raw_detections)
+
+    def store_landmarks(self, landmarks) -> None:
+        """Storing new landmarks captured by the user for a new gesture."""
+
+        self.csv_writer.writerow(
+            [self.gesture_ctr] + landmarks
+        )
+
+        # Flushing the buffer if any values are left behind
+        self.landmark_dataset.flush()
+
+    def update_gesture_counter(self) -> None:
+        """Updating the gesture counter after collecting all the samples."""
+        self.gesture_ctr += 1
 
     def close_recorder(self) -> None:
         self.landmark_dataset.close()

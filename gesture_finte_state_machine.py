@@ -1,6 +1,7 @@
 from vision_library.gesture_recognizer import MediaPipeGestureRecognizer
 from vision_library.hand_landmarker import MediaPipeHandLandmarker
 from vision_library.camera_utils import CVLiveStream
+from vision_library.landmark_learner import LandmarkTrainer
 from vision_library.mediapipe_utils import MediaPipeUtils
 from vision_library.landmark_recorder import LandmarkRecorder
 
@@ -26,6 +27,7 @@ class GestureRecognizerFSM:
         self.mediapipe_utilities = MediaPipeUtils()
         self.live_stream = CVLiveStream()
         self.landmark_recoder = LandmarkRecorder()
+        self.landmark_trainer = LandmarkTrainer("forest")
 
         # State Variable to manage the transitions
         self.state = "recognition"
@@ -35,7 +37,7 @@ class GestureRecognizerFSM:
 
         # Threashold and Counters to manage the State Variable
         self.no_gesture_counter = 1
-        self.threashold_recognizer = 30
+        self.threashold_recognizer = 50
         self.gesture_sample_counter = 0
         self.gesture_sample_threshold = 10
 
@@ -86,6 +88,7 @@ class GestureRecognizerFSM:
         # Exit Condition
         if cv2.waitKey(1) == ord("q"):
             self.state = "exit"
+            return
 
         # Checking for transition condition to learn landmarks
         if self.no_gesture_counter >= self.threashold_recognizer:
@@ -116,7 +119,8 @@ class GestureRecognizerFSM:
             mp_frame, self.live_stream.timestamp_ms
         )
 
-        current_landmarks = self.landmark_recoder.extract_landmarks(
+        # Extracting the landmarks from the tracking state
+        current_landmarks, _ = self.landmark_recoder.extract_landmarks(
             detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream
         )
 
@@ -135,15 +139,16 @@ class GestureRecognizerFSM:
         # Exit Condition
         if keyStroke == ord("q"):
             self.state = "exit"
+            return
         elif keyStroke == ord("r"):
-            self.state = "recognition"
-            self.no_gesture_counter = 0
-        elif keyStroke == ord("c"):
+            # Transitioning to learning as an intermediate state before returning to recognition
+            self.state = "learning"
+        elif keyStroke == ord("n"):
             self.state = "capture"
             self.gesture_sample_counter = 0
 
     def capturing_state(self) -> None:
-        """Function to capture all the samples of a gesture to store the landmarks for learning."""
+        """Describes the pipeline and states for capturing new gestures and storing them."""
 
         # Tracking the keystroke for cases
         keyStroke = cv2.waitKey(1)
@@ -167,35 +172,86 @@ class GestureRecognizerFSM:
         )
 
         # Extracting the landmarks to be captured
-        extracted_landmarks = self.landmark_recoder.extract_landmarks(
+        extracted_landmarks, raw_extracted_landmarks = self.landmark_recoder.extract_landmarks(
             detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream
         )
 
         if self.gesture_sample_counter < self.gesture_sample_threshold:
             if keyStroke == ord("s") and extracted_landmarks:
                 # Storing the landmarks that are captured
-                self.landmark_recoder.store_landmarks(detection_result)
+                self.landmark_recoder.store_landmarks(raw_extracted_landmarks)
 
                 # Updating the counter
                 self.gesture_sample_counter += 1
+
+                # Visual confirmation on capturing samples
+                frame = self.live_stream.display_text_on_stream(
+                    frame, text=f"Sample number: {self.gesture_sample_counter} Captured", coord=(10, 100)
+                )
+                self.live_stream.display_live_frame(TITLE, frame)
+
+                # Slowing down the frames
+                _ = cv2.waitKey(350)
+
             elif keyStroke == ord("q"):
                 self.state = "exit"
+                return
             else:
                 print("No landmarks detected in this frame, try again !!!")
         else:
             print("Retrieved required samples, returning to tracking")
+
+            # Delay to show confirmation and slow down frames
+            _ = cv2.waitKey(300)
+
             self.landmark_recoder.gesture_ctr += 1
             self.state = "tracking"
+            return
 
         # Updating the number of samples captured
         frame = self.live_stream.display_text_on_stream(
             frame,
-            coord=(10, 100),
-            text=f"Collected Samples {self.gesture_sample_counter}/{self.gesture_sample_threshold} for training."
+            coord=(10, 150),
+            text=f"Collected: {self.gesture_sample_counter}/{self.gesture_sample_threshold} samples"
+        )
+
+        # Updating the number of unique gestures tracked and learned
+        frame = self.live_stream.display_text_on_stream(
+            frame,
+            coord=(10, 200),
+            text=f"Unique Gestures Collected: {self.landmark_recoder.gesture_ctr - 1}"
         )
 
         # Displaying the Landmarks
         self.live_stream.display_live_frame(TITLE, frame)
+
+    def learning_state(self) -> None:
+        """Describes the pipeline for learning any of the new gestures that were taught in capture."""
+
+        # Loading the dataset
+        landmark_df = self.landmark_recoder.landmarks_df
+
+        # Empty dataframe skip learning process
+        if landmark_df.empty:
+            self.state = "recognition"
+            self.no_gesture_counter = 1
+            return
+
+        # Preparing the dataframe for training
+        train_set, test_set = self.landmark_trainer.prepare_data(landmark_df)
+
+        # Training the model
+        report = self.landmark_trainer.train_model(
+            *train_set, *test_set
+        )
+        print(report)
+
+        # Saving the models
+        self.landmark_trainer.save_model()
+
+        # Transitioning back to recognition
+        self.state = "recognition"
+        self.no_gesture_counter = 1
 
     def run(self) -> None:
         """Mainloop for the FSM."""
@@ -207,6 +263,8 @@ class GestureRecognizerFSM:
                 self.tracking_state()
             elif self.state == "capture":
                 self.capturing_state()
+            elif self.state == "learning":
+                self.learning_state()
             time.sleep(0.01)
 
         # Exit application condition
