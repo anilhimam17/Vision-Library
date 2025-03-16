@@ -31,23 +31,33 @@ class LandmarkRecorder:
     def landmarks_df(self) -> pd.DataFrame:
         return pd.read_csv(self.filepath)
 
-    def extract_landmarks(self, detection_result, frame, live_stream_handle) -> tuple[Any, Any]:
+    def extract_landmarks(self, detection_result, frame, live_stream_handle, tracking=False) -> tuple[Any, Any]:
         """Carries out the landmark extraction process and provides the current detections."""
 
         current_landmarks = []
         current_raw_detections = []
         if detection_result.hand_landmarks:
-            for hand in detection_result.hand_landmarks:
-                for landmark in hand:
-                    h, w, _ = frame.shape
-
-                    x = int(landmark.x * w)
-                    y = int(landmark.y * h)
-
-                    # Keep note of current landmarks to cache for persistence
-                    current_landmarks.append((x, y))
+            # Tracking only the first hand for extraction incase of recognition state
+            if not tracking:
+                first_hand = detection_result.hand_landmarks[0]
+                for landmark in first_hand:
                     current_raw_detections.extend([landmark.x, landmark.y, landmark.z])
-                    frame = live_stream_handle.display_landmark_on_stream(frame, (x, y))
+            # Tracking both the hand in other states, need to make this more standard
+            else:
+                for hand in detection_result.hand_landmarks:
+                    for landmark in hand:
+                        h, w, _ = frame.shape
+
+                        x = int(landmark.x * w)
+                        y = int(landmark.y * h)
+
+                        # Keep note of current landmarks to cache for persistence
+                        current_landmarks.append((x, y))
+                        current_raw_detections.extend([landmark.x, landmark.y, landmark.z])
+
+                        # Display the tracked landmarks only in tracking state
+                        if tracking:
+                            frame = live_stream_handle.display_landmark_on_stream(frame, (x, y))
 
         return (current_landmarks, current_raw_detections)
 
@@ -66,5 +76,6 @@ class LandmarkRecorder:
         self.gesture_ctr += 1
 
     def close_recorder(self) -> None:
+        """Releases all the resources allocated for storage of landmarks."""
         self.landmark_dataset.close()
         del self.csv_writer

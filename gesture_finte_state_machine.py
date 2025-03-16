@@ -1,7 +1,7 @@
 from vision_library.gesture_recognizer import MediaPipeGestureRecognizer
 from vision_library.hand_landmarker import MediaPipeHandLandmarker
 from vision_library.camera_utils import CVLiveStream
-from vision_library.landmark_learner import LandmarkTrainer
+from vision_library.landmark_learner import CustomPredictor, LandmarkTrainer
 from vision_library.mediapipe_utils import MediaPipeUtils
 from vision_library.landmark_recorder import LandmarkRecorder
 
@@ -27,7 +27,8 @@ class GestureRecognizerFSM:
         self.mediapipe_utilities = MediaPipeUtils()
         self.live_stream = CVLiveStream()
         self.landmark_recoder = LandmarkRecorder()
-        self.landmark_trainer = LandmarkTrainer("forest")
+        self.landmark_trainer = LandmarkTrainer("svm")
+        self.custom_predictor = CustomPredictor()
 
         # State Variable to manage the transitions
         self.state = "recognition"
@@ -53,28 +54,49 @@ class GestureRecognizerFSM:
             self.live_stream.convert_to_rgb, frame
         )
 
-        # Model inferencing
-        recognition_result = self.recognizer.recognize_for_video(
+        # MediaPipe Gesture Recognizer inference
+        mp_result = self.recognizer.recognize_for_video(
             mp_frame, self.live_stream.timestamp_ms
         )
+
+        # MediaPipe Handlandmarker inference
+        detection_result = self.detector.detect_for_video(
+            mp_frame, timestamp_ms=self.live_stream.timestamp_ms
+        )
+        _, raw_extracted_landmarks = self.landmark_recoder.extract_landmarks(
+            detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream, tracking=False
+        )
+        svm_label, svm_confidence = self.custom_predictor.make_predictions(raw_extracted_landmarks)
 
         # Displaying the mode
         frame = self.live_stream.display_text_on_stream(frame, "Gesture Recognition Mode", (10, 50))
 
-        valid_gestures = []
-        if recognition_result.gestures and len(recognition_result.gestures[0]) > 0:
-            valid_gestures = [
-                gesture for gesture in recognition_result.gestures[0]
+        valid_gestures_mp = []
+        if mp_result.gestures and len(mp_result.gestures[0]) > 0:
+            valid_gestures_mp = [
+                gesture for gesture in mp_result.gestures[0]
                 if (gesture.category_name is not None and gesture.category_name.lower() != "none")
                 and gesture.score >= 0.6
             ]
 
-        # Non-max suppression
-        if valid_gestures:
-            most_confident_gesture = max(valid_gestures, key=lambda gesture: gesture.score)
-            text = f"{most_confident_gesture.category_name}: {most_confident_gesture.score:.2f}"
+        # Non-Max suppression
+        if valid_gestures_mp:
+            mp_most_confident = max(valid_gestures_mp, key=lambda gesture: gesture.score)
+            mp_label = mp_most_confident.category_name
+            mp_confidence = mp_most_confident.score
+        else:
+            mp_label = None
+            mp_confidence = 0.0
+
+        # Score polling
+        if svm_confidence >= 0.7:
+            text = f"{svm_label}: {svm_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
-            self.no_gesture_counter = 0
+            self.no_gesture_counter = 1
+        elif mp_confidence >= 0.6:
+            text = f"{mp_label}: {mp_confidence:.2f}"
+            frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
+            self.no_gesture_counter = 1
         else:
             self.no_gesture_counter += 1
             frame = self.live_stream.display_text_on_stream(
@@ -121,7 +143,7 @@ class GestureRecognizerFSM:
 
         # Extracting the landmarks from the tracking state
         current_landmarks, _ = self.landmark_recoder.extract_landmarks(
-            detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream
+            detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream, tracking=True
         )
 
         # Combining the previous and current landmarks for persistance
@@ -173,7 +195,7 @@ class GestureRecognizerFSM:
 
         # Extracting the landmarks to be captured
         extracted_landmarks, raw_extracted_landmarks = self.landmark_recoder.extract_landmarks(
-            detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream
+            detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream, tracking=True
         )
 
         if self.gesture_sample_counter < self.gesture_sample_threshold:

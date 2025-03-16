@@ -6,6 +6,8 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import joblib
+import os
+import numpy as np
 
 
 # Filepaths
@@ -19,8 +21,8 @@ class LandmarkTrainer:
     def __init__(self, model: str) -> None:
         if model == "forest":
             self.model = RandomForestClassifier()
-        else:
-            self.model = SVC()
+        elif model == "svm":
+            self.model = SVC(probability=True)
         self.scaler = StandardScaler()
 
     def prepare_data(self, df: pd.DataFrame) -> Any:
@@ -54,9 +56,25 @@ class LandmarkTrainer:
         _ = joblib.dump(self.model, CLASSIFIER_PATH)
         _ = joblib.dump(self.scaler, SCALER_PATH)
 
-    def load_model(self) -> tuple[Any, Any]:
-        """Function to load the trained models."""
-        classifier = joblib.load(CLASSIFIER_PATH)
-        scaler = joblib.load(SCALER_PATH)
 
-        return (classifier, scaler)
+class CustomPredictor:
+    """Class to load the trained models and make predictions."""
+    def __init__(self):
+        if os.path.exists(CLASSIFIER_PATH):
+            self.custom_classfier = joblib.load(CLASSIFIER_PATH)
+        if os.path.exists(SCALER_PATH):
+            self.custom_scaler = joblib.load(SCALER_PATH)
+
+    def make_predictions(self, raw_extracted_landmarks) -> tuple[Any, Any]:
+        """Applying the custom pipeline to make predictions from the landmarks."""
+
+        if raw_extracted_landmarks:
+            feature_vector = np.array(raw_extracted_landmarks).reshape(1, -1)
+            scaled_feature_vector = self.custom_scaler.transform(feature_vector)
+            svm_prediction = self.custom_classfier.predict(scaled_feature_vector)
+            svm_confidence = max(self.custom_classfier.predict_proba(scaled_feature_vector)[0])
+        else:
+            svm_prediction = None
+            svm_confidence = 0.0
+
+        return (svm_prediction, svm_confidence)
