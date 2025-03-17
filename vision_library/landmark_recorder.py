@@ -1,3 +1,4 @@
+import os
 import csv
 import numpy as np
 import pandas as pd
@@ -142,5 +143,6 @@ class LandmarkRecorder:
 
     def close_recorder(self) -> None:
         """Releases all the resources allocated for storage of landmarks."""
+        
         self.landmark_dataset.close()
-        del self.csv_writer
+        os.remove(LAND_CSV_PATH)

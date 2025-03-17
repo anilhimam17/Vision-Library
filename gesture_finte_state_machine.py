@@ -304,4 +304,6 @@ class GestureRecognizerFSM:
 
         # Exit application condition
         print("The system has terminated!!!")
+        self.custom_predictor.close_predictor()
+        self.landmark_recoder.close_recorder()
         self.live_stream.clear_live_stream()

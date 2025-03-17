@@ -87,3 +87,9 @@ class CustomPredictor:
             svm_confidence = 0.0
 
         return (svm_prediction, svm_confidence)
+
+    def close_predictor(self):
+        """Release all the resources and delete pretrained models."""
+
+        os.remove(CLASSIFIER_PATH)
+        os.remove(SCALER_PATH)
