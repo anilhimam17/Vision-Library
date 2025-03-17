@@ -33,7 +33,7 @@ class LandmarkTrainer:
         y = df[["label"]]
 
         # Splitting the dataset
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, shuffle=True)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, shuffle=True)
 
         # Scaling the features
         X_train_scaled = self.scaler.fit_transform(X_train)
@@ -49,7 +49,7 @@ class LandmarkTrainer:
 
         # Testing
         y_pred = self.model.predict(X_test)
-        return classification_report(y_test, y_pred)
+        return classification_report(y_test, y_pred, output_dict=True)
 
     def save_model(self) -> None:
         """Function to serialize the trained models."""
@@ -60,16 +60,25 @@ class LandmarkTrainer:
 class CustomPredictor:
     """Class to load the trained models and make predictions."""
     def __init__(self):
+        self.custom_classfier = None
+        self.custom_scaler = None
+
+    def load_models(self):
+        """Function to load the models dynamically on request."""
+
         if os.path.exists(CLASSIFIER_PATH):
             self.custom_classfier = joblib.load(CLASSIFIER_PATH)
         if os.path.exists(SCALER_PATH):
             self.custom_scaler = joblib.load(SCALER_PATH)
 
-    def make_predictions(self, raw_extracted_landmarks) -> tuple[Any, Any]:
+    def make_predictions(self, processed_features) -> tuple[Any, Any]:
         """Applying the custom pipeline to make predictions from the landmarks."""
 
-        if raw_extracted_landmarks:
-            feature_vector = np.array(raw_extracted_landmarks).reshape(1, -1)
+        # Loading the latest models
+        self.load_models()
+
+        if processed_features and self.custom_classfier is not None:
+            feature_vector = np.array(processed_features).reshape(1, -1)
             scaled_feature_vector = self.custom_scaler.transform(feature_vector)
             svm_prediction = self.custom_classfier.predict(scaled_feature_vector)
             svm_confidence = max(self.custom_classfier.predict_proba(scaled_feature_vector)[0])

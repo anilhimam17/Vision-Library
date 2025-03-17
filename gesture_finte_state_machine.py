@@ -6,6 +6,7 @@ from vision_library.mediapipe_utils import MediaPipeUtils
 from vision_library.landmark_recorder import LandmarkRecorder
 
 import cv2
+import json
 import time
 
 
@@ -27,7 +28,8 @@ class GestureRecognizerFSM:
         self.mediapipe_utilities = MediaPipeUtils()
         self.live_stream = CVLiveStream()
         self.landmark_recoder = LandmarkRecorder()
-        self.landmark_trainer = LandmarkTrainer("svm")
+        # self.landmark_live_recorder = LandmarkRecorder("./db/live_recorder.csv")
+        self.landmark_trainer = LandmarkTrainer("forest")
         self.custom_predictor = CustomPredictor()
 
         # State Variable to manage the transitions
@@ -63,10 +65,15 @@ class GestureRecognizerFSM:
         detection_result = self.detector.detect_for_video(
             mp_frame, timestamp_ms=self.live_stream.timestamp_ms
         )
-        _, raw_extracted_landmarks = self.landmark_recoder.extract_landmarks(
+        current_raw_landmarks, current_raw_detections, _ = self.landmark_recoder.extract_landmarks(
             detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream, tracking=False
         )
-        svm_label, svm_confidence = self.custom_predictor.make_predictions(raw_extracted_landmarks)
+        landmark_features = self.landmark_recoder.extract_features(current_raw_landmarks)
+
+        custom_label, custom_confidence = self.custom_predictor.make_predictions(landmark_features)
+
+        # Storing the Live Landmarks for Testing
+        # self.landmark_live_recorder.store_landmarks(landmark_features)
 
         # Displaying the mode
         frame = self.live_stream.display_text_on_stream(frame, "Gesture Recognition Mode", (10, 50))
@@ -89,8 +96,8 @@ class GestureRecognizerFSM:
             mp_confidence = 0.0
 
         # Score polling
-        if svm_confidence >= 0.7:
-            text = f"{svm_label}: {svm_confidence:.2f}"
+        if custom_confidence >= 0.7:
+            text = f"{custom_label}: {custom_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
             self.no_gesture_counter = 1
         elif mp_confidence >= 0.6:
@@ -142,18 +149,18 @@ class GestureRecognizerFSM:
         )
 
         # Extracting the landmarks from the tracking state
-        current_landmarks, _ = self.landmark_recoder.extract_landmarks(
+        detections = self.landmark_recoder.extract_landmarks(
             detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream, tracking=True
         )
 
         # Combining the previous and current landmarks for persistance
-        if self.previous_landmarks is not None and current_landmarks:
+        if self.previous_landmarks is not None and detections[-1]:
             for (x, y) in self.previous_landmarks:
                 frame = self.live_stream.display_landmark_on_stream(frame, (x, y))
 
         # Moving the current landmarks to cache
-        if current_landmarks:
-            self.previous_landmarks = current_landmarks
+        if detections[-1]:
+            self.previous_landmarks = detections[-1]
 
         # Displaying the Landmarks
         self.live_stream.display_live_frame(TITLE, frame)
@@ -194,14 +201,17 @@ class GestureRecognizerFSM:
         )
 
         # Extracting the landmarks to be captured
-        extracted_landmarks, raw_extracted_landmarks = self.landmark_recoder.extract_landmarks(
+        current_raw_landmarks, current_raw_detections, _ = self.landmark_recoder.extract_landmarks(
             detection_result=detection_result, frame=frame, live_stream_handle=self.live_stream, tracking=True
         )
 
+        # Extracting features fromt the landmarks
+        landmark_features = self.landmark_recoder.extract_features(current_raw_landmarks)
+
         if self.gesture_sample_counter < self.gesture_sample_threshold:
-            if keyStroke == ord("s") and extracted_landmarks:
+            if keyStroke == ord("s") and landmark_features:
                 # Storing the landmarks that are captured
-                self.landmark_recoder.store_landmarks(raw_extracted_landmarks)
+                self.landmark_recoder.store_landmarks(landmark_features)
 
                 # Updating the counter
                 self.gesture_sample_counter += 1
@@ -266,7 +276,10 @@ class GestureRecognizerFSM:
         report = self.landmark_trainer.train_model(
             *train_set, *test_set
         )
-        print(report)
+
+        # Saving the classification report for reference
+        with open("./models/classification_report.json", "w") as f:
+            json.dump(report, f, indent=4)
 
         # Saving the models
         self.landmark_trainer.save_model()

@@ -1,0 +1,94 @@
+# syntax=docker/dockerfile:1
+
+ARG VERSION="2.5.5.5-linux64"
+ARG SDK_VERSION="2.5.5/sdk-python"
+ARG CHOREGRAPHE_VERSION="2.5.5/Choregraphe"
+
+# ARG VERSION="2.5.7.1-linux64"
+# ARG VERSION="2.5.10.7-linux64"
+# ARG SDK_VERSION="2.5.10/Python%20SDK"
+# ARG CHOREGRAPHE_VERSION="2.5.10/Choregraphe"
+# ARG VERSION="2.1.4.13-linux64"
+# ARG SDK_VERSION="2.1.4.13/sdk-python"
+# ARG CHOREGRAPHE_VERSION="2.1.4.13/choregraphe"
+
+FROM ubuntu:xenial as tmp
+
+ARG VERSION
+ARG SDK_VERSION
+ARG CHOREGRAPHE_VERSION
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN wget -O /tmp/pynaoqi-python.tar.gz "https://community-static.aldebaran.com/resources/${SDK_VERSION}/pynaoqi-python2.7-${VERSION}.tar.gz" \
+    && tar -C /opt -xf /tmp/pynaoqi-python.tar.gz \
+    && ln -fs /opt/pynaoqi-python2.7-${VERSION} /opt/pynaoqi-python-sdk \
+    && rm /tmp/pynaoqi-python.tar.gz
+
+RUN wget -O /tmp/choregraphe-suite.tar.gz "https://community-static.aldebaran.com/resources/${CHOREGRAPHE_VERSION}/choregraphe-suite-${VERSION}.tar.gz" \
+    && tar -C /opt -xf /tmp/choregraphe-suite.tar.gz \
+    && rm /tmp/choregraphe-suite.tar.gz
+
+# RUN wget -O /tmp/naoqi-sdk.tar.gz "https://community-static.aldebaran.com/resources/2.5.5/naoqi-sdk/naoqi-sdk-${VERSION}.tar.gz" \
+#     && tar -C /opt -xf /tmp/naoqi-sdk.tar.gz \
+#     && rm /tmp/naoqi-sdk.tar.gz
+
+
+
+
+
+
+FROM ubuntu:xenial as naoqi
+# FROM ubuntu:trusty
+
+ARG VERSION
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    build-essential \
+    dbus \
+    vim \
+    python \
+    python-dev \
+    python-pip \
+    python-setuptools \
+    # libssl-dev \
+    libxcb* \
+    libgl-dev \
+    libxrandr-dev \
+    libxkbcommon-x11-dev \
+    libfontconfig-dev \
+    libxaw7-dev \
+    libogre-1.9-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+
+ARG uid=2001
+ARG gid=2555
+
+WORKDIR /app
+RUN groupadd -g ${gid} naoqi && useradd -m --no-log-init -r -u ${uid} -g naoqi naoqi
+RUN chown naoqi:naoqi /app
+
+COPY --from=tmp --chown=naoqi:naoqi /opt /opt
+RUN ln -fs /opt/choregraphe-suite-${VERSION}/monitor /usr/bin/monitor \
+    && ln -fs /opt/choregraphe-suite-${VERSION}/choregraphe /usr/bin/choregraphe_launch \
+    && printf '#!/bin/sh\n\exec choregraphe_launch --key 654e-4564-153c-6518-2f44-7562-206e-4c60-5f47-5f45 "$@"\n' >> /usr/bin/choregraphe \
+    && chmod +x /usr/bin/choregraphe \
+    && ln -fs /usr/lib/x86_64-linux-gnu/OGRE-1.9.0 /opt/pynaoqi-python-sdk/lib/OGRE
+
+USER naoqi:naoqi
+
+ENV PYTHONPATH "${PYTHONPATH}:/opt/pynaoqi-python-sdk/lib/python2.7/site-packages"
+#ENV QI_SDK_PREFIX="/opt/pynaoqi-python-sdk"
+#ENV LIBGL_ALWAYS_INDIRECT=1
+#ENV QT_DEBUG_PLUGINS=1
+# RUN pip install --upgrade pip==20.3.4
+
+EXPOSE 2500
+
+CMD ["bash", "python", "/app/server.py"]
+# CMD ["choregraphe", "--key 654e-4564-153c-6518-2f44-7562-206e-4c60-5f47-5f45"]
