@@ -1,11 +1,11 @@
 {
-    "2": {
+    "1": {
         "precision": 1.0,
         "recall": 1.0,
         "f1-score": 1.0,
         "support": 1.0
     },
-    "3": {
+    "2": {
         "precision": 1.0,
         "recall": 1.0,
         "f1-score": 1.0,
