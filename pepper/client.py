@@ -1,7 +1,7 @@
 import socket
 import json
 
-HOST = 'localhost'  # Assuming you're connecting from the same machine
+HOST = '192.168.1.53'  # Assuming you're connecting from the same machine
 PORT = 2500         # Must match the host port mapped
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

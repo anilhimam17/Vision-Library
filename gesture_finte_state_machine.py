@@ -8,9 +8,12 @@ from vision_library.landmark_recorder import LandmarkRecorder
 import cv2
 import json
 import time
+import socket
 
 
 TITLE = "Automatic Gesture Recognition and Realtime Learning System"
+HOST = "192.168.1.53"
+PORT = 12345
 
 
 class GestureRecognizerFSM:
@@ -31,6 +34,10 @@ class GestureRecognizerFSM:
         # self.landmark_live_recorder = LandmarkRecorder("./db/live_recorder.csv")
         self.landmark_trainer = LandmarkTrainer("forest")
         self.custom_predictor = CustomPredictor()
+
+        # Robot connection
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((HOST, PORT))
 
         # State Variable to manage the transitions
         self.state = "recognition"
@@ -99,10 +106,18 @@ class GestureRecognizerFSM:
         if custom_confidence >= 0.7:
             text = f"{custom_label}: {custom_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
+
+            message = json.dumps({"gesture_category": str(custom_label[0])})
+            _ = self.client_socket.send(message.encode("utf-8"))
+
             self.no_gesture_counter = 1
         elif mp_confidence >= 0.6:
             text = f"{mp_label}: {mp_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
+
+            message = json.dumps({"gesture_category": mp_label})
+            _ = self.client_socket.send(message.encode("utf-8"))
+
             self.no_gesture_counter = 1
         else:
             self.no_gesture_counter += 1
@@ -260,14 +275,14 @@ class GestureRecognizerFSM:
     def learning_state(self) -> None:
         """Describes the pipeline for learning any of the new gestures that were taught in capture."""
 
-        # Loading the dataset
-        landmark_df = self.landmark_recoder.landmarks_df
-
         # Empty dataframe skip learning process
-        if landmark_df.empty:
+        if self.landmark_recoder.landmarks_df.empty:
             self.state = "recognition"
             self.no_gesture_counter = 1
             return
+
+        # Loading the dataset
+        landmark_df = self.landmark_recoder.landmarks_df
 
         # Preparing the dataframe for training
         train_set, test_set = self.landmark_trainer.prepare_data(landmark_df)

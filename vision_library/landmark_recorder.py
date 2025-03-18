@@ -33,6 +33,8 @@ class LandmarkRecorder:
 
     @property
     def landmarks_df(self) -> pd.DataFrame:
+        self.landmark_dataset.flush()
+        self.landmark_dataset.seek(0)
         return pd.read_csv(self.filepath)
 
     def extract_landmarks(self, detection_result, frame, live_stream_handle, tracking=False) -> tuple[Any, Any, Any]:

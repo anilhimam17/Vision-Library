@@ -91,5 +91,6 @@ class CustomPredictor:
     def close_predictor(self):
         """Release all the resources and delete pretrained models."""
 
-        os.remove(CLASSIFIER_PATH)
-        os.remove(SCALER_PATH)
+        for path in [CLASSIFIER_PATH, SCALER_PATH]:
+            if os.path.exists(path):
+                os.remove(path)
