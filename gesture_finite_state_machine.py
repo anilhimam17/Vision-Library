@@ -261,8 +261,6 @@ class GestureRecognizerFSM:
             # Delay to show confirmation and slow down frames
             _ = cv2.waitKey(300)
 
-            self.landmark_recoder.gesture_ctr += 1
-
             # Message to acknowledge the newly learnt gesture
             message = json.dumps(
                 {
@@ -272,6 +270,7 @@ class GestureRecognizerFSM:
             )
             _ = self.client_socket.send(message.encode("utf-8"))
 
+            self.landmark_recoder.gesture_ctr += 1
             self.state = "tracking"
             return
 
