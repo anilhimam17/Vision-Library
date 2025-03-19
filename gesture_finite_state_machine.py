@@ -44,12 +44,13 @@ class GestureRecognizerFSM:
 
         # Threashold and Counters to manage the State Variable
         self.no_gesture_counter = 1
-        self.threashold_recognizer = 50
+        self.threashold_recognizer = 75
         self.gesture_sample_counter = 0
         self.gesture_sample_threshold = 10
 
     def recognition_state(self) -> None:
         """Describes the control flow and pipeline for the recognition state."""
+
         ret, frame = self.live_stream.begin_live_stream()
         if not ret:
             print("Error retrieving frames in recognition state")
@@ -282,13 +283,19 @@ class GestureRecognizerFSM:
         train_set, test_set = self.landmark_trainer.prepare_data(landmark_df)
 
         # Training the model
-        report = self.landmark_trainer.train_model(
+        best_params, report = self.landmark_trainer.train_model(
             *train_set, *test_set
         )
 
         # Saving the classification report for reference
         with open("./models/classification_report.json", "w") as f:
             json.dump(report, f, indent=4)
+
+        # Saving the best estimator params for reference
+        with open("./models/best_estimator.json", "w") as f:
+            json.dump({
+                "best_params": best_params
+            }, f, indent=4)
 
         # Saving the models
         self.landmark_trainer.save_model()
@@ -313,7 +320,7 @@ class GestureRecognizerFSM:
 
         # Exit application condition
         print("The system has terminated!!!")
-        
+
         # Acknowledgement the system has terminated
         self.pepper_messenger.send_message(self.state)
         self.custom_predictor.close_predictor()

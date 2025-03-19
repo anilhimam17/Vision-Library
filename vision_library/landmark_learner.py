@@ -1,13 +1,15 @@
+import os
+import joblib
+import numpy as np
+import pandas as pd
+
 from typing import Any
-from sklearn.preprocessing import StandardScaler
+
 from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split
-import pandas as pd
-import joblib
-import os
-import numpy as np
+from sklearn.model_selection import train_test_split, GridSearchCV
 
 
 # Filepaths
@@ -41,15 +43,46 @@ class LandmarkTrainer:
 
         return ((X_train_scaled, y_train), (X_test_scaled, y_test))
 
-    def train_model(self, X_train, y_train, X_test, y_test) -> Any:
+    def train_model(self, X_train, y_train, X_test, y_test) -> tuple[Any, Any]:
         """Function to train the model on the dataset and provide the classification report."""
 
+        # Sorting the param grids for the different models
+        param_grid = {}
+        if isinstance(self.model, RandomForestClassifier):
+            param_grid = {
+                "n_estimators": [5, 10, 25, 50],
+                "max_depth": [3, 5, 7, 10],
+                "max_features": ["sqrt", "log2"],
+                "min_samples_leaf": [1, 2],
+                "min_samples_split": [2, 3]
+            }
+        elif isinstance(self.model, SVC):
+            param_grid = {
+                "kernel": ["rbf", "linear"],
+                "C": [0.1, 1, 10],
+                "gamma": [0.001, 0.01, 0.1]
+            }
+
+        # Initialising the Grid Search
+        grid_search = GridSearchCV(
+            estimator=self.model,
+            param_grid=param_grid,
+            cv=5,
+            scoring="accuracy",
+            n_jobs=-1
+        )
+
         # Training the model
-        self.model.fit(X_train, y_train)
+        grid_search.fit(X_train, y_train)
+
+        # Best Estimators
+        self.model = grid_search.best_estimator_
 
         # Testing
         y_pred = self.model.predict(X_test)
-        return classification_report(y_test, y_pred, output_dict=True)
+
+        test_report = classification_report(y_test, y_pred, output_dict=True)
+        return (grid_search.best_params_, test_report)
 
     def save_model(self) -> None:
         """Function to serialize the trained models."""
@@ -80,13 +113,13 @@ class CustomPredictor:
         if processed_features and self.custom_classfier is not None:
             feature_vector = np.array(processed_features).reshape(1, -1)
             scaled_feature_vector = self.custom_scaler.transform(feature_vector)
-            svm_prediction = self.custom_classfier.predict(scaled_feature_vector)
-            svm_confidence = max(self.custom_classfier.predict_proba(scaled_feature_vector)[0])
+            custom_prediction = self.custom_classfier.predict(scaled_feature_vector)
+            custom_confidence = max(self.custom_classfier.predict_proba(scaled_feature_vector)[0])
         else:
-            svm_prediction = None
-            svm_confidence = 0.0
+            custom_prediction = None
+            custom_confidence = 0.0
 
-        return (svm_prediction, svm_confidence)
+        return (custom_prediction, custom_confidence)
 
     def close_predictor(self):
         """Release all the resources and delete pretrained models."""
