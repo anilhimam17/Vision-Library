@@ -4,16 +4,14 @@ from vision_library.camera_utils import CVLiveStream
 from vision_library.landmark_learner import CustomPredictor, LandmarkTrainer
 from vision_library.mediapipe_utils import MediaPipeUtils
 from vision_library.landmark_recorder import LandmarkRecorder
+from pepper.client import PepperSocket
 
 import cv2
-import json
 import time
-import socket
+import json
 
 
 TITLE = "Automatic Gesture Recognition and Realtime Learning System"
-HOST = "192.168.1.53"
-PORT = 12345
 
 
 class GestureRecognizerFSM:
@@ -36,8 +34,7 @@ class GestureRecognizerFSM:
         self.custom_predictor = CustomPredictor()
 
         # Robot connection
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect((HOST, PORT))
+        self.pepper_messenger = PepperSocket()
 
         # State Variable to manage the transitions
         self.state = "recognition"
@@ -106,28 +103,12 @@ class GestureRecognizerFSM:
         if custom_confidence >= 0.7:
             text = f"{custom_label}: {custom_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
-
-            message = json.dumps(
-                {
-                    "state": self.state,
-                    "gesture_category": str(custom_label[0])
-                }
-            )
-            _ = self.client_socket.send(message.encode("utf-8"))
-
+            self.pepper_messenger.send_message(self.state, str(custom_label[0]), )
             self.no_gesture_counter = 1
         elif mp_confidence >= 0.6:
             text = f"{mp_label}: {mp_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
-
-            message = json.dumps(
-                {
-                    "state": self.state,
-                    "gesture_category": mp_label
-                }
-            )
-            _ = self.client_socket.send(message.encode("utf-8"))
-
+            self.pepper_messenger.send_message(self.state, mp_label)
             self.no_gesture_counter = 1
         else:
             self.no_gesture_counter += 1
@@ -262,13 +243,7 @@ class GestureRecognizerFSM:
             _ = cv2.waitKey(300)
 
             # Message to acknowledge the newly learnt gesture
-            message = json.dumps(
-                {
-                    "state": self.state,
-                    "gesture_number": str(self.landmark_recoder.gesture_ctr),
-                }
-            )
-            _ = self.client_socket.send(message.encode("utf-8"))
+            self.pepper_messenger.send_message(self.state, str(self.landmark_recoder.gesture_ctr))
 
             self.landmark_recoder.gesture_ctr += 1
             self.state = "tracking"
@@ -338,6 +313,10 @@ class GestureRecognizerFSM:
 
         # Exit application condition
         print("The system has terminated!!!")
+        
+        # Acknowledgement the system has terminated
+        self.pepper_messenger.send_message(self.state)
         self.custom_predictor.close_predictor()
         self.landmark_recoder.close_recorder()
         self.live_stream.clear_live_stream()
+        self.pepper_messenger.close_socket()

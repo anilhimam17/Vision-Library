@@ -70,7 +70,11 @@ class PepperFSM:
             elif state and state == "capture":
                 gesture_number = message.get("gesture_number")
                 if gesture_number:
-                    tts.say("\\style=joyful\\ Just learnt a new gesture " + str(gesture_number) + ", thank you !!!!", configuration)
+                    text = "\\style=joyful\\ Just learnt a new gesture " + str(gesture_number) + ", thank you !!!!"
+                    tts.say(text, configuration)
+            elif state and state == "exit":
+                text = "\\style=neutral\\ Oh, that's the end of the experiment. It was a pleasure to meet you. Bye Now!!!"
+                tts.say(text, configuration)
 
     def run(self):
         """Mainloop for the FSM of Pepper."""
