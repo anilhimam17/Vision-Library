@@ -39,29 +39,38 @@ class PepperFSM:
     def process_message(self, message):
         """Function to determine the gesture_category as detected by the gesture recognition system."""
         if message:
-            gesture_category = message.get("gesture_category")
-            if gesture_category and (gesture_category != self.current_gesture):
-                self.current_gesture = gesture_category
+            state = message.get("state")
+            if state and state == "recognition":
+                gesture_category = message.get("gesture_category")
+                if gesture_category and (gesture_category != self.current_gesture):
+                    self.current_gesture = gesture_category
 
-                if self.current_gesture == "Open_Palm":
-                    tts.say("\\style=joyful\\ Oh, Hi!!!. Nice to meet you, I am Dusty.", configuration)
-                elif self.current_gesture == "Thumb_Up":
-                    tts.say("\\style=joyful\\ I am good!!!, thanks for asking. How are you ?", configuration)
-                elif self.current_gesture == "Thumb_Down":
-                    tts.say("\\style=neutral\\ Are you not having a good time ?, How can I help ?", configuration)
-                elif self.current_gesture == "Victory":
-                    tts.say("\\style=joyful\\  Oh, cool. Can we take a selfie together then ?", configuration)
-                elif self.current_gesture == "ILoveYou":
-                    tts.say("\\style=joyful\\  Awwwwwwwwwwwwwwww, I love you tooooo.", configuration)
-                elif self.current_gesture == "Closed_Fist":
-                    tts.say("\\style=joyful\\  Dammmn, you have a strong grip right there!!!", configuration)
-                elif self.current_gesture == "Pointing_Up":
-                    tts.say("\\style=joyful\\  Yup, thats right. Aim for sky, stars and beyond always !!!", configuration)
+                    if self.current_gesture == "Open_Palm":
+                        tts.say("\\style=joyful\\ Oh, Hi!!!. Nice to meet you, I am Dusty.", configuration)
+                    elif self.current_gesture == "Thumb_Up":
+                        tts.say("\\style=joyful\\ I am good!!!, thanks for asking. How are you ?", configuration)
+                    elif self.current_gesture == "Thumb_Down":
+                        tts.say("\\style=neutral\\ Are you not having a good time ?, How can I help ?", configuration)
+                    elif self.current_gesture == "Victory":
+                        tts.say("\\style=joyful\\  Oh, cool. Can we take a selfie together then ?", configuration)
+                    elif self.current_gesture == "ILoveYou":
+                        tts.say("\\style=joyful\\  Awwwwwwwwwwwwwwww, I love you tooooo.", configuration)
+                    elif self.current_gesture == "Closed_Fist":
+                        tts.say("\\style=joyful\\  Dammmn, you have a strong grip right there!!!", configuration)
+                    elif self.current_gesture == "Pointing_Up":
+                        tts.say("\\style=joyful\\  Yup, thats right. Aim for sky, stars and beyond always !!!", configuration)
+                    else:
+                        text = "\\style=joyful\\ Cool, this is the new gesture " + str(gesture_category) + " right !!!!"
+                        tts.say(text, configuration)
 
-            elif gesture_category and (gesture_category == self.current_gesture):
-                return
-            else:
-                print("No gesture detected !!!!!")
+                elif gesture_category and (gesture_category == self.current_gesture):
+                    return
+                else:
+                    print("No gesture detected !!!!!")
+            elif state and state == "capture":
+                gesture_number = message.get("gesture_number")
+                if gesture_number:
+                    tts.say("\\style=joyful\\ Just learnt a new gesture " + str(gesture_number) + ", thank you !!!!", configuration)
 
     def run(self):
         """Mainloop for the FSM of Pepper."""

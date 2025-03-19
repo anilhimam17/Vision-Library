@@ -107,7 +107,12 @@ class GestureRecognizerFSM:
             text = f"{custom_label}: {custom_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
 
-            message = json.dumps({"gesture_category": str(custom_label[0])})
+            message = json.dumps(
+                {
+                    "state": self.state,
+                    "gesture_category": str(custom_label[0])
+                }
+            )
             _ = self.client_socket.send(message.encode("utf-8"))
 
             self.no_gesture_counter = 1
@@ -115,7 +120,12 @@ class GestureRecognizerFSM:
             text = f"{mp_label}: {mp_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
 
-            message = json.dumps({"gesture_category": mp_label})
+            message = json.dumps(
+                {
+                    "state": self.state,
+                    "gesture_category": mp_label
+                }
+            )
             _ = self.client_socket.send(message.encode("utf-8"))
 
             self.no_gesture_counter = 1
@@ -252,6 +262,16 @@ class GestureRecognizerFSM:
             _ = cv2.waitKey(300)
 
             self.landmark_recoder.gesture_ctr += 1
+
+            # Message to acknowledge the newly learnt gesture
+            message = json.dumps(
+                {
+                    "state": self.state,
+                    "gesture_number": str(self.landmark_recoder.gesture_ctr),
+                }
+            )
+            _ = self.client_socket.send(message.encode("utf-8"))
+
             self.state = "tracking"
             return
 
