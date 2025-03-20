@@ -9,5 +9,6 @@ dependencies = [
     "mediapipe>=0.10.21",
     "opencv-python>=4.11.0.86",
     "pandas>=2.2.3",
+    "pydantic-ai>=0.0.42",
     "scikit-learn>=1.6.1",
 ]
