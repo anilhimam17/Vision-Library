@@ -11,7 +11,7 @@ class PepperSocket:
         )
         self.client_socket.connect((self.host, self.port))
 
-    def send_message(self, state, message=None, message_type=None):
+    def send_message(self, state, message=None, message_type=None, message_text=None):
         """Function to abstract the message sending mechanism to pepper."""
         json_packet = json.dumps({})
 
@@ -20,12 +20,14 @@ class PepperSocket:
                 json_packet = json.dumps({
                     "state": state,
                     "gesture_category": message,
+                    "message_text": message_text,
                     "message_type": message_type
                 })
             elif state == "capture":
                 json_packet = json.dumps({
                     "state": state,
                     "gesture_number": message,
+                    "message_text": message_text,
                     "message_type": message_type
                 })
         elif message_type == "entry_point":

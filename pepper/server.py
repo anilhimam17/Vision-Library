@@ -53,26 +53,28 @@ class PepperFSM:
             # Identifying the gestures in the recognition state for response
             if state and state == "recognition":
                 gesture_category = message.get("gesture_category")
-                if gesture_category and (gesture_category != self.current_gesture):
+                message_text = message.get("message_text")
+                if (gesture_category and message_text) and (gesture_category != self.current_gesture):
                     self.current_gesture = gesture_category
 
                     if self.current_gesture == "Open_Palm":
-                        tts.say("\\style=joyful\\ Oh, Hi!!!. Nice to meet you, I am Dusty.", configuration)
+                        tts.say("\\style=joyful\\ " + str(message_text), configuration)
                     elif self.current_gesture == "Thumb_Up":
-                        tts.say("\\style=joyful\\ I am good!!!, thanks for asking. How are you ?", configuration)
+                        tts.say("\\style=joyful\\ " + str(message_text), configuration)
                     elif self.current_gesture == "Thumb_Down":
-                        tts.say("\\style=neutral\\ Are you not having a good time ?, How can I help ?", configuration)
+                        tts.say("\\style=neutral\\ " + str(message_text), configuration)
                     elif self.current_gesture == "Victory":
-                        tts.say("\\style=joyful\\  Oh, cool. Can we take a selfie together then ?", configuration)
+                        tts.say("\\style=joyful\\ " + str(message_text), configuration)
                     elif self.current_gesture == "ILoveYou":
-                        tts.say("\\style=joyful\\  Awwwwwwwwwwwwwwww, I love you tooooo.", configuration)
+                        tts.say("\\style=joyful\\ " + str(message_text), configuration)
                     elif self.current_gesture == "Closed_Fist":
-                        tts.say("\\style=joyful\\  Dammmn, you have a strong grip right there!!!", configuration)
+                        tts.say("\\style=joyful\\ " + str(message_text), configuration)
                     elif self.current_gesture == "Pointing_Up":
-                        tts.say("\\style=joyful\\  Yup, thats right. Aim for sky, stars and beyond always !!!", configuration)
-                    else:
-                        text = "\\style=joyful\\ Cool, this is the new gesture " + str(gesture_category) + " right !!!!"
-                        tts.say(text, configuration)
+                        tts.say("\\style=joyful\\ " + str(message_text), configuration)
+                elif gesture_category and (gesture_category != self.current_gesture):
+                    self.current_gesture = gesture_category
+                    text = "\\style=joyful\\ Cool, this is the new gesture " + str(gesture_category) + " right !!!!"
+                    tts.say(text, configuration)
                 else:
                     return
             # Reponse for the new gesture tracked

@@ -38,15 +38,16 @@ class GestureRecognizerFSM:
         self.pepper_messenger = PepperSocket()
         self.llm_agent = LLMAgent()
 
-        # State Variable to manage the transitions
+        # State Variable and Gesture state management
         self.state = "recognition"
+        self.current_gesture = ""
 
         # Buffer for landmark detection persistence
         self.previous_landmarks = []
 
         # Threashold and Counters to manage the State Variable
         self.no_gesture_counter = 1
-        self.threashold_recognizer = 75
+        self.threashold_recognizer = 130
         self.gesture_sample_counter = 0
         self.gesture_sample_threshold = 10
 
@@ -112,11 +113,20 @@ class GestureRecognizerFSM:
             text = f"{custom_label}: {custom_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
             self.pepper_messenger.send_message(self.state, str(custom_label[0]), message_type="send_message")
+            self.current_gesture = str(custom_label[0])
             self.no_gesture_counter = 1
         elif mp_confidence >= 0.6:
             text = f"{mp_label}: {mp_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
-            self.pepper_messenger.send_message(self.state, mp_label, message_type="send_message")
+
+            message_text = ""
+            if self.current_gesture != mp_label:
+                self.current_gesture = mp_label
+                message_text = self.llm_agent.run_query(mp_label)
+
+            self.pepper_messenger.send_message(
+                self.state, mp_label, message_type="send_message", message_text=message_text
+            )
             self.no_gesture_counter = 1
         else:
             self.no_gesture_counter += 1
