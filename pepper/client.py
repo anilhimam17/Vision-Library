@@ -11,24 +11,44 @@ class PepperSocket:
         )
         self.client_socket.connect((self.host, self.port))
 
-    def send_message(self, state, message=None):
+    def send_message(self, state, message=None, message_type=None):
         """Function to abstract the message sending mechanism to pepper."""
         json_packet = json.dumps({})
 
-        if state == "recognition":
-            json_packet = json.dumps({
-                "state": state,
-                "gesture_category": message
-            })
-        elif state == "capture":
-            json_packet = json.dumps({
-                "state": state,
-                "gesture_number": message
-            })
-        elif state == "exit":
-            json_packet = json.dumps({
-                "state": state
-            })
+        if message_type == "send_message":
+            if state == "recognition":
+                json_packet = json.dumps({
+                    "state": state,
+                    "gesture_category": message,
+                    "message_type": message_type
+                })
+            elif state == "capture":
+                json_packet = json.dumps({
+                    "state": state,
+                    "gesture_number": message,
+                    "message_type": message_type
+                })
+        elif message_type == "entry_point":
+            if state == "recognition":
+                json_packet = json.dumps({
+                    "state": state,
+                    "message_type": message_type
+                })
+            elif state == "tracking":
+                json_packet = json.dumps({
+                    "state": state,
+                    "message_type": message_type
+                })
+            elif state == "capture":
+                json_packet = json.dumps({
+                    "state": state,
+                    "message_type": message_type
+                })
+            elif state == "exit":
+                json_packet = json.dumps({
+                    "state": state,
+                    "message_type": message_type
+                })
 
         # Transmit the Message
         _ = self.client_socket.send(json_packet.encode("utf-8"))

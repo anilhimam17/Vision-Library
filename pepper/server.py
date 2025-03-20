@@ -25,6 +25,10 @@ class PepperFSM:
     """Class that implements all the properties and behaviours of pepper."""
     def __init__(self):
         self.current_gesture = ""
+        self.current_mode = ""
+
+        # Message to acknowledge the start of the experiment
+        tts.say("\\style=neutral\\ The experiment has started, I am ready to go!!!!!!")
 
     def recieve_message(self, data):
         """Function to decompile the json packet that was recieved"""
@@ -38,8 +42,15 @@ class PepperFSM:
 
     def process_message(self, message):
         """Function to determine the gesture_category as detected by the gesture recognition system."""
-        if message:
+        message_type = message.get("message_type") if message else None
+
+        # Constructing the logic based on message type
+        if message and message_type == "send_message":
+
+            # Differentiating the sending of messages based on the states
             state = message.get("state")
+
+            # Identifying the gestures in the recognition state for response
             if state and state == "recognition":
                 gesture_category = message.get("gesture_category")
                 if gesture_category and (gesture_category != self.current_gesture):
@@ -62,19 +73,40 @@ class PepperFSM:
                     else:
                         text = "\\style=joyful\\ Cool, this is the new gesture " + str(gesture_category) + " right !!!!"
                         tts.say(text, configuration)
-
-                elif gesture_category and (gesture_category == self.current_gesture):
-                    return
                 else:
-                    print("No gesture detected !!!!!")
+                    return
+            # Reponse for the new gesture tracked
             elif state and state == "capture":
                 gesture_number = message.get("gesture_number")
                 if gesture_number:
                     text = "\\style=joyful\\ Just learnt a new gesture " + str(gesture_number) + ", thank you !!!!"
                     tts.say(text, configuration)
-            elif state and state == "exit":
-                text = "\\style=neutral\\ Oh, that's the end of the experiment. It was a pleasure to meet you. Bye Now!!!"
-                tts.say(text, configuration)
+            # Response when no gesture is detected in the send_message type
+            else:
+                print("No gesture detected !!!!!")
+
+        # Constructing the logic based on state transitions for each entry point
+        elif message and message_type == "entry_point":
+
+            # The current state for the entry point
+            state = message.get("state")
+            if state and (self.current_mode != state):
+                self.current_mode = state
+
+                if state == "recognition":
+                    tts.say("\\style=neutral\\ In gesture recognition mode.")
+                elif state == "tracking":
+                    tts.say("\\style=neutral\\ In gesture tracking mode.")
+                elif state == "capture":
+                    tts.say("\\style=neutral\\ In gesture capturing mode.")
+                elif state == "learning":
+                    tts.say("\\style=joyful\\ Thank you for teaching me the new gestures, just a second while I learn them !!!!")
+                elif state == "exit":
+                    text = "\\style=neutral\\ Oh, that's the end of the experiment. It was a pleasure to meet you. Bye Now!!!"
+                    tts.say(text, configuration)
+                    return 1
+            else:
+                return
 
     def run(self):
         """Mainloop for the FSM of Pepper."""
@@ -87,7 +119,10 @@ class PepperFSM:
                 continue
 
             message_decoded = self.recieve_message(data)
-            self.process_message(message_decoded)
+            flag = self.process_message(message_decoded)
+            if flag:
+                server_socket.close()
+                break
 
 
 # Instantiating the class for run

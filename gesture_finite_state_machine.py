@@ -5,6 +5,7 @@ from vision_library.landmark_learner import CustomPredictor, LandmarkTrainer
 from vision_library.mediapipe_utils import MediaPipeUtils
 from vision_library.landmark_recorder import LandmarkRecorder
 from pepper.client import PepperSocket
+from pepper.llm import LLMAgent
 
 import cv2
 import time
@@ -18,7 +19,7 @@ class GestureRecognizerFSM:
     """Class behaves as the controller for the Gesture Recognition system.
 
     It will automatically switch states between Gesture Recognition and Hand Landmark tracking to
-    learn new gestures based on the state variable which is dicatated by the no of frames where 
+    learn new gestures based on the state variable which is dicatated by the no of frames where
     no gestures were picked up by the gesture recognizer."""
 
     def __init__(self) -> None:
@@ -33,8 +34,9 @@ class GestureRecognizerFSM:
         self.landmark_trainer = LandmarkTrainer("forest")
         self.custom_predictor = CustomPredictor()
 
-        # Robot connection
+        # Robot deps
         self.pepper_messenger = PepperSocket()
+        self.llm_agent = LLMAgent()
 
         # State Variable to manage the transitions
         self.state = "recognition"
@@ -50,6 +52,11 @@ class GestureRecognizerFSM:
 
     def recognition_state(self) -> None:
         """Describes the control flow and pipeline for the recognition state."""
+
+        # Pepper comm for the current state
+        self.pepper_messenger.send_message(
+            self.state, message_type="entry_point"
+        )
 
         ret, frame = self.live_stream.begin_live_stream()
         if not ret:
@@ -104,12 +111,12 @@ class GestureRecognizerFSM:
         if custom_confidence >= 0.7:
             text = f"{custom_label}: {custom_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
-            self.pepper_messenger.send_message(self.state, str(custom_label[0]), )
+            self.pepper_messenger.send_message(self.state, str(custom_label[0]), message_type="send_message")
             self.no_gesture_counter = 1
         elif mp_confidence >= 0.6:
             text = f"{mp_label}: {mp_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
-            self.pepper_messenger.send_message(self.state, mp_label)
+            self.pepper_messenger.send_message(self.state, mp_label, message_type="send_message")
             self.no_gesture_counter = 1
         else:
             self.no_gesture_counter += 1
@@ -133,6 +140,11 @@ class GestureRecognizerFSM:
 
     def tracking_state(self) -> None:
         """Describes the control flow and pipeline for the tracking state."""
+
+        # Pepper comm for the current state
+        self.pepper_messenger.send_message(
+            self.state, message_type="entry_point"
+        )
 
         # Tracking the keystroke for cases
         keyStroke = cv2.waitKey(1)
@@ -185,6 +197,11 @@ class GestureRecognizerFSM:
 
     def capturing_state(self) -> None:
         """Describes the pipeline and states for capturing new gestures and storing them."""
+
+        # Pepper comm for the current state
+        self.pepper_messenger.send_message(
+            self.state, message_type="entry_point"
+        )
 
         # Tracking the keystroke for cases
         keyStroke = cv2.waitKey(1)
@@ -244,7 +261,7 @@ class GestureRecognizerFSM:
             _ = cv2.waitKey(300)
 
             # Message to acknowledge the newly learnt gesture
-            self.pepper_messenger.send_message(self.state, str(self.landmark_recoder.gesture_ctr))
+            self.pepper_messenger.send_message(self.state, str(self.landmark_recoder.gesture_ctr), message_type="send_message")
 
             self.landmark_recoder.gesture_ctr += 1
             self.state = "tracking"
@@ -269,6 +286,11 @@ class GestureRecognizerFSM:
 
     def learning_state(self) -> None:
         """Describes the pipeline for learning any of the new gestures that were taught in capture."""
+
+        # Pepper comm for the current state
+        self.pepper_messenger.send_message(
+            self.state, message_type="entry_point"
+        )
 
         # Empty dataframe skip learning process
         if self.landmark_recoder.landmarks_df.empty:
@@ -322,7 +344,7 @@ class GestureRecognizerFSM:
         print("The system has terminated!!!")
 
         # Acknowledgement the system has terminated
-        self.pepper_messenger.send_message(self.state)
+        self.pepper_messenger.send_message(self.state, message_type="entry_point")
         self.custom_predictor.close_predictor()
         self.landmark_recoder.close_recorder()
         self.live_stream.clear_live_stream()
