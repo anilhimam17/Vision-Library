@@ -44,6 +44,8 @@ class PepperFSM:
         """Function to determine the gesture_category as detected by the gesture recognition system."""
         message_type = message.get("message_type") if message else None
 
+        pretrained = ["Open_Palm", "Thumb_Up", "Thumb_Down", "Victory", "ILoveYou", "Closed_Fist", "Pointing_Up"]
+
         # Constructing the logic based on message type
         if message and message_type == "send_message":
 
@@ -71,7 +73,7 @@ class PepperFSM:
                         tts.say("\\style=joyful\\ " + str(message_text), configuration)
                     elif self.current_gesture == "Pointing_Up":
                         tts.say("\\style=joyful\\ " + str(message_text), configuration)
-                elif gesture_category and (gesture_category != self.current_gesture):
+                elif gesture_category and gesture_category not in pretrained and (gesture_category != self.current_gesture):
                     self.current_gesture = gesture_category
                     text = "\\style=joyful\\ Cool, this is the new gesture " + str(gesture_category) + " right !!!!"
                     tts.say(text, configuration)

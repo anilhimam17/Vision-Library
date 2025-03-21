@@ -35,7 +35,7 @@ class LandmarkTrainer:
         y = df[["label"]]
 
         # Splitting the dataset
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, shuffle=True)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, shuffle=True)
 
         # Scaling the features
         X_train_scaled = self.scaler.fit_transform(X_train)
