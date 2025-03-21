@@ -208,10 +208,11 @@ class GestureRecognizerFSM:
     def capturing_state(self) -> None:
         """Describes the pipeline and states for capturing new gestures and storing them."""
 
-        # Pepper comm for the current state
-        self.pepper_messenger.send_message(
-            self.state, message_type="entry_point"
-        )
+        if self.gesture_sample_counter == 0:
+            # Pepper comm for the current state
+            self.pepper_messenger.send_message(
+                self.state, message_type="entry_point"
+            )
 
         # Tracking the keystroke for cases
         keyStroke = cv2.waitKey(1)
@@ -243,11 +244,21 @@ class GestureRecognizerFSM:
         landmark_features = self.landmark_recoder.extract_features(current_raw_landmarks)
 
         if self.gesture_sample_counter < self.gesture_sample_threshold:
-            if keyStroke == ord("s") and landmark_features:
-                # Storing the landmarks that are captured
-                self.landmark_recoder.store_landmarks(landmark_features)
+            # Exit condition
+            if keyStroke == ord("q"):
+                self.state = "exit"
+                return
 
-                # Updating the counter
+            if landmark_features:
+                # Acknowledgment to start capture of sample
+                self.pepper_messenger.send_message(
+                    self.state,
+                    f"Capturing Sample {self.gesture_sample_counter + 1}",
+                    message_type="acknowledgement"
+                )
+                time.sleep(1.5)
+
+                self.landmark_recoder.store_landmarks(landmark_features)
                 self.gesture_sample_counter += 1
 
                 # Visual confirmation on capturing samples
@@ -255,27 +266,68 @@ class GestureRecognizerFSM:
                     frame, text=f"Sample number: {self.gesture_sample_counter} Captured", coord=(10, 100)
                 )
                 self.live_stream.display_live_frame(TITLE, frame)
-
-                # Slowing down the frames
-                _ = cv2.waitKey(350)
-
-            elif keyStroke == ord("q"):
-                self.state = "exit"
-                return
+                time.sleep(1.5)
             else:
                 print("No landmarks detected in this frame, try again !!!")
+                self.pepper_messenger.send_message(
+                    self.state,
+                    "Hey, I don't see anything to learn can you please show the new hand gesture.",
+                    message_type="acknowledgement"
+                )
+                time.sleep(1.5)
         else:
             print("Retrieved required samples, returning to tracking")
 
             # Delay to show confirmation and slow down frames
             _ = cv2.waitKey(300)
 
+            time.sleep(2)
+
             # Message to acknowledge the newly learnt gesture
-            self.pepper_messenger.send_message(self.state, str(self.landmark_recoder.gesture_ctr), message_type="send_message")
+            self.pepper_messenger.send_message(
+                self.state, str(self.landmark_recoder.gesture_ctr), message_type="send_message"
+            )
+
+            time.sleep(2)
 
             self.landmark_recoder.gesture_ctr += 1
             self.state = "tracking"
             return
+
+        # if self.gesture_sample_counter < self.gesture_sample_threshold:
+        #     if keyStroke == ord("s") and landmark_features:
+        #         # Storing the landmarks that are captured
+        #         self.landmark_recoder.store_landmarks(landmark_features)
+
+        #         # Updating the counter
+        #         self.gesture_sample_counter += 1
+
+        #         # Visual confirmation on capturing samples
+        #         frame = self.live_stream.display_text_on_stream(
+        #             frame, text=f"Sample number: {self.gesture_sample_counter} Captured", coord=(10, 100)
+        #         )
+        #         self.live_stream.display_live_frame(TITLE, frame)
+
+        #         # Slowing down the frames
+        #         _ = cv2.waitKey(350)
+
+        #     elif keyStroke == ord("q"):
+        #         self.state = "exit"
+        #         return
+        #     else:
+        #         print("No landmarks detected in this frame, try again !!!")
+        # else:
+        #     print("Retrieved required samples, returning to tracking")
+
+        #     # Delay to show confirmation and slow down frames
+        #     _ = cv2.waitKey(300)
+
+        #     # Message to acknowledge the newly learnt gesture
+        #     self.pepper_messenger.send_message(self.state, str(self.landmark_recoder.gesture_ctr), message_type="send_message")
+
+        #     self.landmark_recoder.gesture_ctr += 1
+        #     self.state = "tracking"
+        #     return
 
         # Updating the number of samples captured
         frame = self.live_stream.display_text_on_stream(
@@ -301,6 +353,7 @@ class GestureRecognizerFSM:
         self.pepper_messenger.send_message(
             self.state, message_type="entry_point"
         )
+        time.sleep(1)
 
         # Empty dataframe skip learning process
         if self.landmark_recoder.landmarks_df.empty:

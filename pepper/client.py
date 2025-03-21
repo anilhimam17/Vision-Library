@@ -51,6 +51,13 @@ class PepperSocket:
                     "state": state,
                     "message_type": message_type
                 })
+        elif message_type == "acknowledgement":
+            if state == "capture":
+                json_packet = json.dumps({
+                    "state": state,
+                    "message_text": message,
+                    "message_type": message_type
+                })
 
         # Transmit the Message
         _ = self.client_socket.send(json_packet.encode("utf-8"))

@@ -111,6 +111,12 @@ class PepperFSM:
                     return 1
             else:
                 return
+        elif message and message_type == "acknowledgement":
+            message_text = message.get("message_text")
+            if message_text:
+                tts.say("\\style=neutral\\ " + str(message_text), configuration)
+            else:
+                return
 
     def run(self):
         """Mainloop for the FSM of Pepper."""
