@@ -109,7 +109,7 @@ class GestureRecognizerFSM:
             mp_confidence = 0.0
 
         # Score polling
-        if custom_confidence >= 0.7:
+        if custom_confidence >= 0.8 and custom_confidence >= mp_confidence * 1.8:
             text = f"{custom_label}: {custom_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
             self.pepper_messenger.send_message(self.state, str(custom_label[0]), message_type="send_message")

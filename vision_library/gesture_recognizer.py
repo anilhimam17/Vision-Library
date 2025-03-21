@@ -19,7 +19,7 @@ class MediaPipeGestureRecognizer:
         return self.GestureRecognizerOptions(
             base_options=self.BaseOptions(model_asset_path=self.model_path),
             running_mode=self.VisionRunningMode.VIDEO,
-            num_hands=2
+            num_hands=1
         )
 
     def build_recognizer(self) -> Any:
