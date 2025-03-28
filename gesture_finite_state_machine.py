@@ -109,13 +109,13 @@ class GestureRecognizerFSM:
             mp_confidence = 0.0
 
         # Score polling
-        if custom_confidence >= 0.8 and custom_confidence >= mp_confidence * 1.8:
+        if custom_confidence >= 0.8 and custom_confidence >= mp_confidence * 1.9:
             text = f"{custom_label}: {custom_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
             self.pepper_messenger.send_message(self.state, str(custom_label[0]), message_type="send_message")
             self.current_gesture = str(custom_label[0])
             self.no_gesture_counter = 1
-        elif mp_confidence >= 0.6:
+        elif mp_confidence >= 0.7:
             text = f"{mp_label}: {mp_confidence:.2f}"
             frame = self.live_stream.display_text_on_stream(frame, text, (10, 100))
 
@@ -256,7 +256,7 @@ class GestureRecognizerFSM:
                     f"Capturing Sample {self.gesture_sample_counter + 1}",
                     message_type="acknowledgement"
                 )
-                time.sleep(1.5)
+                time.sleep(1)
 
                 self.landmark_recoder.store_landmarks(landmark_features)
                 self.gesture_sample_counter += 1
@@ -266,7 +266,6 @@ class GestureRecognizerFSM:
                     frame, text=f"Sample number: {self.gesture_sample_counter} Captured", coord=(10, 100)
                 )
                 self.live_stream.display_live_frame(TITLE, frame)
-                time.sleep(1.5)
             else:
                 print("No landmarks detected in this frame, try again !!!")
                 self.pepper_messenger.send_message(
@@ -274,60 +273,25 @@ class GestureRecognizerFSM:
                     "Hey, I don't see anything to learn can you please show the new hand gesture.",
                     message_type="acknowledgement"
                 )
-                time.sleep(1.5)
+                time.sleep(1)
         else:
             print("Retrieved required samples, returning to tracking")
 
             # Delay to show confirmation and slow down frames
             _ = cv2.waitKey(300)
 
-            time.sleep(2)
+            time.sleep(1)
 
             # Message to acknowledge the newly learnt gesture
             self.pepper_messenger.send_message(
                 self.state, str(self.landmark_recoder.gesture_ctr), message_type="send_message"
             )
 
-            time.sleep(2)
+            time.sleep(1)
 
             self.landmark_recoder.gesture_ctr += 1
             self.state = "tracking"
             return
-
-        # if self.gesture_sample_counter < self.gesture_sample_threshold:
-        #     if keyStroke == ord("s") and landmark_features:
-        #         # Storing the landmarks that are captured
-        #         self.landmark_recoder.store_landmarks(landmark_features)
-
-        #         # Updating the counter
-        #         self.gesture_sample_counter += 1
-
-        #         # Visual confirmation on capturing samples
-        #         frame = self.live_stream.display_text_on_stream(
-        #             frame, text=f"Sample number: {self.gesture_sample_counter} Captured", coord=(10, 100)
-        #         )
-        #         self.live_stream.display_live_frame(TITLE, frame)
-
-        #         # Slowing down the frames
-        #         _ = cv2.waitKey(350)
-
-        #     elif keyStroke == ord("q"):
-        #         self.state = "exit"
-        #         return
-        #     else:
-        #         print("No landmarks detected in this frame, try again !!!")
-        # else:
-        #     print("Retrieved required samples, returning to tracking")
-
-        #     # Delay to show confirmation and slow down frames
-        #     _ = cv2.waitKey(300)
-
-        #     # Message to acknowledge the newly learnt gesture
-        #     self.pepper_messenger.send_message(self.state, str(self.landmark_recoder.gesture_ctr), message_type="send_message")
-
-        #     self.landmark_recoder.gesture_ctr += 1
-        #     self.state = "tracking"
-        #     return
 
         # Updating the number of samples captured
         frame = self.live_stream.display_text_on_stream(
