@@ -47,7 +47,7 @@ class GestureRecognizerFSM:
 
         # Threashold and Counters to manage the State Variable
         self.no_gesture_counter = 1
-        self.threashold_recognizer = 130
+        self.threashold_recognizer = 250
         self.gesture_sample_counter = 0
         self.gesture_sample_threshold = 10
 
