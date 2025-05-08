@@ -3,7 +3,9 @@
 A library that leverages advanced computer vision techniques to accurately detect and interpret human gestures in real-time, addressing one of the
 key challenges in human-robot interaction from the perspective of intelligent robot assistants, creating a seamless communication interface between humans and robot assistants.
 
-<img src="./Dissertation Poster.pdf" alt="Image of Dissertation Poster">
+<center>
+    <img src="./Dissertation Poster.png" alt="Image of Dissertation Poster" width="600" height="900">
+</center>
 
 ## Features
 
