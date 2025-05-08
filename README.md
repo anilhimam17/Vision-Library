@@ -1,7 +1,5 @@
 # Vision Library 👀
 
-## Introduction
-
 A library that leverages advanced computer vision techniques to accurately detect and interpret human gestures in real-time, addressing one of the
 key challenges in human-robot interaction from the perspective of intelligent robot assistants, creating a seamless communication interface between humans and robot assistants.
 
@@ -24,5 +22,12 @@ The vision library includes the following features:
 
 ## Demo and Dissertation Report
 
-To have a look at the demo please click [here](https://drive.google.com/file/d/1h-v_JkG5j-MQ3RtXYw6h8rlQaTwnwVFS/view?usp=sharing)
-To have a look at the in-depth technical dissertation report please click [here](https://drive.google.com/file/d/1QdT9XZFPpBnfPUjKUaokwlsXQ75-Dt8R/view?usp=sharing)
+- To have a look at the demo please click [here](https://drive.google.com/file/d/1h-v_JkG5j-MQ3RtXYw6h8rlQaTwnwVFS/view?usp=sharing)
+- To have a look at the in-depth technical dissertation report please click [here](https://drive.google.com/file/d/1QdT9XZFPpBnfPUjKUaokwlsXQ75-Dt8R/view?usp=sharing)
+
+## Getting Started
+
+- To reduce the pain of install all the depandencies I have utilised UV to manage all the requirements corresponding to the project. You can install UV by accessing the docs and command for the same through the [link](https://docs.astral.sh/uv/getting-started/installation/).
+- On instally UV and cloning the repository execute following commands from the root path of the directory.
+    - ```bash uv sync --all-groups```
+    - ```bash uv run main.py```
